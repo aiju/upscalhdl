@@ -2,8 +2,9 @@
 
 module i2c(
 	input wire clk,
-	inout reg scl,
-	inout reg sda,
+	output reg scl,
+	input wire sdain,
+	output reg sdaout,
 	
 	input wire [7:0] addr,
 	input wire [7:0] wrdata,
@@ -14,31 +15,39 @@ module i2c(
 	output reg err
 );
 
-	parameter STARTTIME = 1000;
-	parameter QUARTBIT = 500;
+	parameter QSTARTTIME = 250;
+	parameter QUARTBIT = 250;
 
-	reg [2:0] state, state_;
+	reg [3:0] state, state_;
 	localparam IDLE = 0;
 	localparam START = 1;
 	localparam ADDR = 2;
 	localparam ADDRACK = 3;
 	localparam DATA = 4;
-	localparam DATAACK = 5;
-	localparam WAITREQ = 6;
+	localparam WRDATAACK = 5;
+	localparam WRWAITREQ = 6;
+	localparam RDWAITREQ = 7;
+	localparam RDDATAACK = 8;
+	localparam RDEND = 9;
+	localparam STOP = 10;
+	localparam STARTREP = 11;
 	
-	reg [7:0] curaddr;
+	reg [7:0] curaddr, wrdata0;
 	reg [7:0] sr;
 	reg [15:0] timer;
 	reg [2:0] ctr;
-	reg starttime, bittime, startbit, clrctr, loadaddr, loadrdata, loaddata, shift, err_;
+	reg starttime, bittime, clrctr, incctr, loadaddr, loaddata, shift, err_, sdaout_, last0, setrddata;
+	
+	initial state = IDLE;
 	
 	always @(posedge clk) begin
 		state <= state_;
 		err <= err_;
+		sdaout <= sdaout_;
 		if(timer > 0)
 			timer <= timer - 1;
 		if(starttime)
-			timer <= STARTTIME;
+			timer <= 4*QSTARTTIME;
 		if(bittime)
 			timer <= 4*QUARTBIT;
 		if(clrctr)
@@ -47,47 +56,55 @@ module i2c(
 			ctr <= ctr + 1;
 		if(loadaddr) begin
 			curaddr <= addr;
+			wrdata0 <= wrdata;
+			last0 <= last;
 			sr <= addr;
 		end
 		if(loaddata && !curaddr[0])
-			sr <= wrdata;
+			sr <= loadaddr ? wrdata : wrdata0;
+		if(setrddata)
+			rddata <= sr;
 		if(shift)
-			sr <= {sr[6:0], sda};
+			sr <= {sr[6:0], sdain};
 	end
 	
 	always @(*) begin
 		state_ = state;
 		err_ = err;
 		scl = 1;
-		sda = 1'bz;
 		starttime = 0;
 		bittime = 0;
 		ack = 0;
-		err = 0;
 		clrctr = 0;
 		incctr = 0;
 		loadaddr = 0;
 		loaddata = 0;
 		shift = 0;
+		setrddata = 0;
+		sdaout_ = sdaout;
 		case(state)
-		IDLE:
+		IDLE: begin
+			sdaout_ = 1;
 			if(req) begin
+				loadaddr = 1;
 				err_ = 0;
 				state_ = START;
 				starttime = 1;
 			end
+		end
 		START: begin
-			sda = 0;
+			if(timer == 2*QSTARTTIME)
+				sdaout_ = 0;
 			if(timer == 0) begin
 				state_ = ADDR;
-				loadaddr = 1;
-				clrctr = 0;
+				clrctr = 1;
 				bittime = 1;
 			end
 		end
 		ADDR: begin
-			sda = sr[7] ? 1'bz : 0;
 			shift = timer == 3*QUARTBIT;
+			if(shift)
+				sdaout_ = sr[7];
 			scl = timer < 2*QUARTBIT;
 			if(timer == 0) begin
 				if(ctr == 7)
@@ -97,9 +114,11 @@ module i2c(
 			end
 		end
 		ADDRACK: begin
+			if(timer == 3*QUARTBIT)
+				sdaout_ = 1;
 			scl = timer < 2*QUARTBIT;
 			if(timer == 0) begin
-				if(sda) begin
+				if(sdain) begin
 					starttime = 1;
 					state_ = STOP;
 					err_ = 1;
@@ -111,45 +130,109 @@ module i2c(
 			end
 		end
 		DATA: begin
+			scl = timer < 2*QUARTBIT;
 			if(curaddr[0])
-				shift = timer == QUARTBIT
+				shift = timer == QUARTBIT;
 			else begin
-				sda = sr[7] ? 1'bz : 0;
 				shift = timer == 3*QUARTBIT;
+				if(shift)
+					sdaout_ = sr[7];
 			end
 			if(timer == 0) begin
 				bittime = 1;
 				incctr = 1;
 				if(ctr == 7)
-					state_ = DATAACK;
+					if(!curaddr[0])
+						state_ = WRDATAACK;
+					else begin
+						setrddata = 1;	
+						if(last0)
+							state_ = RDEND;
+						else begin
+							ack = 1;
+							state_ = RDWAITREQ;
+						end
+					end
 			end 
 		end
-		DATAACK: begin
+		WRDATAACK: begin
 			scl = timer < 2*QUARTBIT;
-			if(curaddr[0])
-				sda = 0;
+			if(timer == 3 * QUARTBIT)
+				sdaout_ = 1;
 			if(timer == 0) begin
-				if(!curaddr[0] && sda || last) begin
-					err_ = !curaddr[0] && sda;
+				if(sdain || last0) begin
+					err_ = sdain;
 					starttime = 1;
 					state_ = STOP;
 				end else begin
 					ack = 1;
-					state_ = WAITREQ;
+					state_ = WRWAITREQ;
 				end
 			end
 		end
-		WAITREQ:
+		WRWAITREQ:
 			if(req) begin
+				loadaddr = 1;
 				if(addr != curaddr) begin
 					starttime = 1;
-					state_ = START;
+					state_ = STARTREP;
 				end else begin
 					bittime = 1;
 					loaddata = 1;
 					state_ = DATA;
 				end
 			end
+		RDWAITREQ:
+			if(req) begin
+				loadaddr = 1;
+				state_ = RDDATAACK;
+			end
+		RDDATAACK: begin
+			scl = timer < 2*QUARTBIT;
+			if(timer == 3 * QUARTBIT)
+				sdaout_ = addr != curaddr;
+			if(timer == 0) begin
+				if(addr != curaddr) begin
+					starttime = 1;
+					state_ = STARTREP;
+				end else begin
+					bittime = 1;
+					state_ = DATA;
+				end
+			end
+		end
+		RDEND: begin
+			scl = timer < 2*QUARTBIT;
+			if(timer == 3 * QUARTBIT)
+				sdaout_ = 1;
+			if(timer == 0) begin
+				starttime = 1;
+				state_ = STOP;
+			end
+		end
+		STOP: begin
+			scl = timer < 2 * QSTARTTIME;
+			if(timer == 3*QSTARTTIME)
+				sdaout_ = 0;
+			if(timer == QSTARTTIME)
+				sdaout_ = 1;
+			if(timer == 0) begin
+				ack = 1;
+				state_ = IDLE;
+			end
+		end
+		STARTREP: begin
+			scl = timer < 2 * QSTARTTIME;
+			if(timer == 3*QSTARTTIME)
+				sdaout_ = 1;
+			if(timer == QSTARTTIME)
+				sdaout_ = 0;
+			if(timer == 0) begin
+				state_ = ADDR;
+				clrctr = 1;
+				bittime = 1;
+			end
+		end
 		endcase
 	end
 endmodule
