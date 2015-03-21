@@ -33,5 +33,26 @@ set_property PACKAGE_PIN C14 [get_ports hdlrclk]
 set_property PACKAGE_PIN C12 [get_ports hdi2s]
 set_property PACKAGE_PIN D14 [get_ports hdint]
 
+set_property IOSTANDARD LVCMOS33 [get_ports ext*]
+set_property PACKAGE_PIN R2 [get_ports {ext[0]}]
+set_property PACKAGE_PIN P4 [get_ports {ext[1]}]
+set_property PACKAGE_PIN R1 [get_ports {ext[2]}]
+set_property PACKAGE_PIN M5 [get_ports {ext[3]}]
+set_property PACKAGE_PIN P1 [get_ports {ext[4]}]
+set_property PACKAGE_PIN N4 [get_ports {ext[5]}]
+set_property PACKAGE_PIN N2 [get_ports {ext[6]}]
+set_property PACKAGE_PIN N3 [get_ports {ext[7]}]
+set_property PACKAGE_PIN N1 [get_ports {ext[8]}]
+set_property PACKAGE_PIN M4 [get_ports {ext[9]}]
+set_property PACKAGE_PIN M2 [get_ports {ext[10]}]
+set_property PACKAGE_PIN M1 [get_ports {ext[11]}]
+
+set_property IOSTANDARD LVCMOS33 [get_ports adreset]
+set_property PACKAGE_PIN P14 [get_ports adreset]
+
+create_clock -name clk -period 10.000 [get_nets clk]
+create_clock -name hdclk -period 13.158 [get_nets hdclk]
+
+
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.UNUSEDPIN PULLUP [current_design]

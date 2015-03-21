@@ -5,7 +5,7 @@ set outputDir ./build
 file mkdir $outputDir
 
 set thepart xc7a35tftg256-1
-synth_design -top top -part $thepart
+synth_design -top top -part $thepart -flatten_hierarchy none
 write_checkpoint -force $outputDir/post_synth
 opt_design
 place_design

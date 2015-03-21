@@ -16,7 +16,8 @@ module hdmi(
 	output wire hdde,
 	output wire hdvs,
 	output wire hdhs,
-	output wire [23:0] hdd,
+	output wire [15:0] hdx,
+	output wire [15:0] hdy,
 	
 	output wire hdmclk,
 	output wire hdsclk,
@@ -25,11 +26,11 @@ module hdmi(
 	input wire hdint,
 	
 	output reg hdmiactive,
-	output reg [7:0] hddebug,
-	input wire [7:0] gpio
+	input wire [7:0] gpio,
+	output reg [7:0] debug
 );
 
-	localparam INITS = 11;
+	localparam INITS = 12;
 
 	reg [15:0] inits [0:INITS];
 	initial begin
@@ -45,6 +46,7 @@ module hdmi(
 		inits[9] = 16'h1600;
 		inits[10] = 16'h1702;
 		inits[11] = 16'hAF04;
+		inits[12] = 16'hBA60;
 	end
 	
 	localparam HPDPERIOD = 1000000;
@@ -60,7 +62,8 @@ module hdmi(
 	end
 	
 	reg [3:0] ctr;
-	reg resetctr, incctr, setact, loaddebug;
+	reg resetctr, incctr, setact;
+	reg loaddebug;
 	always @(posedge clk) begin
 		if(incctr)
 			ctr <= ctr + 1;
@@ -69,7 +72,7 @@ module hdmi(
 		if(setact)
 			hdmiactive <= hdrddata[6];
 		if(loaddebug)
-			hddebug <= hdrddata;
+			debug <= hdrddata;
 	end
 	
 	reg [2:0] state, state_;
@@ -128,7 +131,7 @@ module hdmi(
 			if(hpdtick)
 				state_ = HPDCHECK;
 		CHECK: begin
-			hdaddr = {1'b1, gpio[1], gpio[2], gpio[3], gpio[4], gpio[5], gpio[6], gpio[7]};
+			hdaddr = {1'b0, gpio[1], gpio[2], gpio[3], gpio[4], gpio[5], gpio[6], gpio[7]};
 			hdreq = 1;
 			if(hdack) begin
 				loaddebug = 1;
@@ -139,6 +142,7 @@ module hdmi(
 	end
 	
 	reg [15:0] x, y;
+
 	localparam HACT = 1280;
 	localparam HFRONT = 72;
 	localparam HSYNC = 80;
@@ -148,7 +152,7 @@ module hdmi(
 	localparam VSYNC = 5;
 	localparam VBACK = 22;
 
-/*	
+/*
 	localparam HACT = 640;
 	localparam HFRONT = 16;
 	localparam HSYNC = 96;
@@ -166,6 +170,7 @@ module hdmi(
 	localparam VSYNCOFF = VACT+VFRONT+VSYNC;
 	localparam VTOT = VACT+VFRONT+VSYNC+VBACK;
 	
+	
 	always @(posedge hdclk)
 		if(x == HTOT-1) begin
 			x <= 0;
@@ -178,7 +183,8 @@ module hdmi(
 	assign hdhs = x >= HSYNCON && x < HSYNCOFF;
 	assign hdvs = y >= VSYNCON && y < VSYNCOFF;
 	assign hdde = x < HACT && y < HACT;
-	assign hdd = hdde ? x[3] ? 24'hff00ff : 24'h00ff00 : 0;
+	assign hdx = x;
+	assign hdy = y;
 	
 	assign hdmclk = 0;
 	assign hdsclk = 0;
