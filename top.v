@@ -8,6 +8,7 @@ module top(
 	output reg led1,
 	output reg led2,
 	output reg led3,
+	
 	output wire hdclk,
 	output reg hdde,
 	output wire hdvs,
@@ -18,15 +19,23 @@ module top(
 	output wire hdlrclk,
 	output wire hdi2s,
 	input wire hdint,
-	output wire [11:0] ext,
-	output wire adreset
+	
+	input wire adclk,
+	input wire adsfl,
+	input wire advs,
+	input wire adhs,
+	input wire adfield,
+	input wire [19:0] addat,
+	output wire adreset,
+	
+	output wire [11:0] ext
 );
 
 	wire sdain0, sdaout, i2creq, i2cack, i2cerr, hdreq, hdwr, hdlast, hdack, hderr, i2clast, hdmiactive;
 	wire adreq, adwr, adlast, adack, aderr, regvalid, hddein, hddeout;
 	wire [7:0] i2caddr, i2crddata, i2cwrdata, hdaddr, hdwrdata, hdrddata, gpio, adaddr, adwrdata, adrddata, regaddr, regdata, debug;
 	wire [15:0] hdx, hdy;
-	wire [23:0] hdd;
+	wire [23:0] hdd0;
 	reg sdain1, sdain;
 	
 	IOBUF sdabuf(.IO(sda), .O(sdain0), .I(0), .T(sdaout));
@@ -35,8 +44,6 @@ module top(
 		sdain <= sdain1;
 	end 
 	
-	assign ext[4:0] = {hdde, adreq, adack, sdain0, scl};
-	ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) ODDR1(.C(hdclk), .R(0), .S(0), .CE(1), .Q(ext[5]), .D1(hdd[0]), .D2(hdd[12]));
 	assign adreset = 1;
 
 	i2c i2c0(clk, scl, sdain, sdaout, i2caddr, i2cwrdata, i2creq, i2clast, i2crddata, i2cack, i2cerr);
@@ -46,7 +53,8 @@ module top(
 	hdmi hdmi0(clk, hdaddr, hdwrdata, hdreq, hdwr, hdlast, hdrddata, hdack, hderr, hdclk, hddein, hdvs, hdhs,
 		hdx, hdy, hdmclk, hdsclk, hdlrclk, hdi2s, hdint, hdmiactive, gpio, debug);
 	ad ad0(clk, adaddr, adwrdata, adreq, adwr, adlast, adrddata, adack, aderr, regaddr, regdata, regvalid);
-	regdisp regdisp0(clk, regaddr, regdata, regvalid, hdclk, hddein, hddeout, hdx, hdy, hdd);
+	regdisp regdisp0(clk, regaddr, regdata, regvalid, hdclk, hddein, hddeout, hdx, hdy, hdd0);
+	wire [23:0] hdd = hdd0 ? hdd0 : addat;
 	always @(posedge hdclk) hdde <= hddeout;
 	genvar i;
 	generate
@@ -67,12 +75,12 @@ module top(
 			led3 = debug[7];
 		end
 	end
-	
+
 	wire pllfb;
 	PLLE2_BASE #(
 		.BANDWIDTH("OPTIMIZED"),
-		.CLKFBOUT_MULT(11),
-		.CLKOUT0_DIVIDE(15),
+		.CLKFBOUT_MULT(14),
+		.CLKOUT0_DIVIDE(19),
 		
 		//.CLKFBOUT_MULT(8),
 		//.CLKOUT0_DIVIDE(30),

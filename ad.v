@@ -16,7 +16,7 @@ module ad(
 	output wire [7:0] regdata,
 	output reg regvalid
 );
-	localparam INITS = 35;
+	localparam INITS = 41;
 
 	reg [15:0] inits [0:INITS];
 	initial begin
@@ -26,7 +26,7 @@ module ad(
 		inits[3] = 16'h1741;
 		inits[4] = 16'h1D47;
 		inits[5] = 16'h3102;
-		inits[6] = 16'h3A17;
+		inits[6] = 16'h3A10;
 		inits[7] = 16'h3B81;
 		inits[8] = 16'h3DA2;
 		inits[9] = 16'h3E6A;
@@ -56,6 +56,12 @@ module ad(
 		inits[33] = 16'hF63B;
 		inits[34] = 16'h0E00;
 		inits[35] = 16'h6903;
+		inits[36] = 16'h0C00;
+		inits[37] = 16'hC302;
+		inits[38] = 16'hC480;
+		inits[39] = 16'hED10;
+		inits[40] = 16'h350c;
+		inits[41] = 16'h363f;
 	end
 	
 	localparam HPDPERIOD = 1000000;
@@ -80,9 +86,10 @@ module ad(
 	end
 	
 	reg [2:0] state, state_;
-	localparam INIT = 0;
-	localparam IDLE = 1;
-	localparam CHECK = 2;
+	localparam WAIT = 0;
+	localparam INIT = 1;
+	localparam IDLE = 2;
+	localparam CHECK = 3;
 	
 	always @(posedge clk)
 		state <= state_;
@@ -99,6 +106,14 @@ module ad(
 		setact = 0;
 		regvalid = 0;
 		case(state)
+		WAIT:
+			if(hpdtick) begin
+				incctr = 1;
+				if(ctr == 10) begin
+					state_ = INIT;
+					clrctr =1;
+				end
+			end
 		INIT: begin
 			adaddr = inits[ctr][15:8];
 			adwrdata = inits[ctr][7:0];
@@ -117,7 +132,7 @@ module ad(
 			end
 		CHECK: begin
 			adaddr = ctr;
-			adlast = ctr == 255;
+			adlast = 1;//ctr == 255;
 			adreq = 1;
 			if(adack) begin
 				regvalid = 1;
@@ -134,7 +149,7 @@ module ad(
 	
 	initial begin
 		ctr = 0;
-		state = INIT;
+		state = WAIT;
 	end
 
 endmodule

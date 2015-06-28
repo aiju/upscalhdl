@@ -21,4 +21,4 @@ report_drc -file $outputDir/post_imp_drc.rpt
 write_verilog -force $outputDir/imp_netlist.v
 write_xdc -no_fixed_only -force $outputDir/imp.xdc
 
-write_bitstream -force -file $outputDir/out.bit
+write_bitstream -force -bin_file -file $outputDir/out.bit

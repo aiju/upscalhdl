@@ -1,0 +1,3 @@
+- connection to ad9889 shouldn't be ddr
+- jtag connector wrong size (2.54 mm instead of 2 mm)
+- wrong footprint for flash memory

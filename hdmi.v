@@ -13,11 +13,11 @@ module hdmi(
 	input wire hderr,
 	
 	input wire hdclk,
-	output wire hdde,
-	output wire hdvs,
-	output wire hdhs,
-	output wire [15:0] hdx,
-	output wire [15:0] hdy,
+	output reg hdde,
+	output reg hdvs,
+	output reg hdhs,
+	output reg [15:0] hdx,
+	output reg [15:0] hdy,
 	
 	output wire hdmclk,
 	output wire hdsclk,
@@ -39,8 +39,8 @@ module hdmi(
 		inits[2] = 16'h9807;
 		inits[3] = 16'h9C38;
 		inits[4] = 16'h9D61;
-		inits[5] = 16'hA287;
-		inits[6] = 16'hA387;
+		inits[5] = 16'hA284;
+		inits[6] = 16'hA384;
 		inits[7] = 16'hBBFF;
 		inits[8] = 16'h150A;
 		inits[9] = 16'h1600;
@@ -144,13 +144,13 @@ module hdmi(
 	reg [15:0] x, y;
 
 	localparam HACT = 1280;
-	localparam HFRONT = 72;
-	localparam HSYNC = 80;
-	localparam HBACK = 216;
+	localparam HFRONT = 110;
+	localparam HSYNC = 40;
+	localparam HBACK = 220;
 	localparam VACT = 720;
-	localparam VFRONT = 3;
+	localparam VFRONT = 5;
 	localparam VSYNC = 5;
-	localparam VBACK = 22;
+	localparam VBACK = 20;
 
 /*
 	localparam HACT = 640;
@@ -163,15 +163,17 @@ module hdmi(
 	localparam VBACK = 33;
 */
 	
-	localparam HSYNCON = HACT+HFRONT;
-	localparam HSYNCOFF = HACT+HFRONT+HSYNC;
-	localparam HTOT = HACT+HFRONT+HSYNC+HBACK;
-	localparam VSYNCON = VACT+VFRONT;
-	localparam VSYNCOFF = VACT+VFRONT+VSYNC;
-	localparam VTOT = VACT+VFRONT+VSYNC+VBACK;
+	localparam HSYNCON = HFRONT;
+	localparam HSYNCOFF = HFRONT+HSYNC;
+	localparam HACTON = HFRONT+HSYNC+HBACK;
+	localparam HTOT = HFRONT+HSYNC+HBACK+HACT;
+	localparam VSYNCON = VFRONT;
+	localparam VSYNCOFF = VFRONT+VSYNC;
+	localparam VACTON = VFRONT+VSYNC+VBACK;
+	localparam VTOT = VFRONT+VSYNC+VBACK+VACT;
 	
 	
-	always @(posedge hdclk)
+	always @(posedge hdclk) begin
 		if(x == HTOT-1) begin
 			x <= 0;
 			if(y == VTOT-1)
@@ -180,11 +182,12 @@ module hdmi(
 				y <= y + 1;
 		end else
 			x <= x + 1;
-	assign hdhs = x >= HSYNCON && x < HSYNCOFF;
-	assign hdvs = y >= VSYNCON && y < VSYNCOFF;
-	assign hdde = x < HACT && y < HACT;
-	assign hdx = x;
-	assign hdy = y;
+		hdhs <= x >= HSYNCON && x < HSYNCOFF;
+		hdvs <= y >= VSYNCON && y < VSYNCOFF;
+		hdde <= x >= HACTON && y >= VACTON;
+		hdx <= x - HACTON;
+		hdy <= y - VACTON;
+	end
 	
 	assign hdmclk = 0;
 	assign hdsclk = 0;
