@@ -21,7 +21,7 @@ module ad(
 	reg [15:0] inits [0:INITS];
 	initial begin
 		inits[0] = 16'h0001;
-		inits[1] = 16'h030C;
+		inits[1] = 16'h0300;
 		inits[2] = 16'h0477;
 		inits[3] = 16'h1741;
 		inits[4] = 16'h1D47;
