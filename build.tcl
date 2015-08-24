@@ -7,11 +7,13 @@ file mkdir $outputDir
 set thepart xc7a35tftg256-1
 synth_design -top top -part $thepart -flatten_hierarchy none
 write_checkpoint -force $outputDir/post_synth
+
 opt_design
 place_design
 write_checkpoint -force $outputDir/post_place
 phys_opt_design
 route_design
+phys_opt_design
 write_checkpoint -force $outputDir/post_route
 
 report_timing_summary -file $outputDir/post_route_timing_summary.rpt

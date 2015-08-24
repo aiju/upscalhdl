@@ -25,8 +25,8 @@ module ad(
 		inits[2] = 16'h0477;
 		inits[3] = 16'h1741;
 		inits[4] = 16'h1D47;
-		inits[5] = 16'h3102;
-		inits[6] = 16'h3A10;
+		inits[5] = 16'h3112;
+		inits[6] = 16'h3A17;
 		inits[7] = 16'h3B81;
 		inits[8] = 16'h3DA2;
 		inits[9] = 16'h3E6A;

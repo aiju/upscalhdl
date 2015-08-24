@@ -11,9 +11,8 @@ module memtest();
 	wire		ddrcas;			// From mem0 of mem.v
 	wire		ddrcke;			// From mem0 of mem.v
 	wire		ddrcs;			// From mem0 of mem.v
-	wire [1:0]	ddrdm;			// From mem0 of mem.v
-	wire [15:0]	ddrdqo0;		// From mem0 of mem.v
-	wire [15:0]	ddrdqo1;		// From mem0 of mem.v
+	wire [1:0]	ddrdmo;			// From mem0 of mem.v
+	wire [31:0]	ddrdqo;			// From mem0 of mem.v
 	wire [1:0]	ddrdqs;			// To/From mem0 of mem.v
 	wire		ddrdqt;			// From mem0 of mem.v
 	wire		ddrras;			// From mem0 of mem.v
@@ -25,14 +24,14 @@ module memtest();
 	/*AUTOREGINPUT*/
 	// Beginning of automatic reg inputs (for undeclared instantiated-module inputs)
 	reg		clk;			// To mem0 of mem.v
-	reg [15:0]	ddrdqi0;		// To mem0 of mem.v
-	reg [15:0]	ddrdqi1;		// To mem0 of mem.v
+	reg [31:0]	ddrdqi;			// To mem0 of mem.v
 	reg [23*PORTS-1:0] memaddr;		// To mem0 of mem.v
 	reg [2*PORTS-1:0] memlen;		// To mem0 of mem.v
 	reg [PORTS-1:0]	memreq;			// To mem0 of mem.v
 	reg [32*PORTS-1:0] memwdata;		// To mem0 of mem.v
 	reg [PORTS-1:0]	memwr;			// To mem0 of mem.v
 	// End of automatics
+	reg clk90;
 
 	parameter MHZ = 100;
 
@@ -43,6 +42,8 @@ module memtest();
 	localparam tRPns = 15;
 	localparam tRRDns = 10;
 	localparam tWRns = 15;
+	localparam tREFIns = 7800;
+	localparam tRFCns = 72;
 	
 	localparam BLEN = 4;
 	localparam QLEN = CAS + BLEN;
@@ -53,6 +54,8 @@ module memtest();
 	localparam tRP = `ns2MHZ(tRPns);
 	localparam tRRD = `ns2MHZ(tRRDns);
 	localparam tWR = `ns2MHZ(tWRns);
+	localparam tREFI = `ns2MHZ(tREFIns);
+	localparam tRFC = `ns2MHZ(tRFCns);
 	localparam tWTR = 2;
 	
 	localparam N=1;
@@ -67,7 +70,7 @@ module memtest();
 	
 	initial begin
 		op[0][0] = {OPRD, 2'd3, 23'h1337, 32'h0};
-		op[1][0] = {OPWR, 2'd0, 23'h1337, 32'h0};
+		op[1][0] = {OPWR, 2'd1, 23'h1337, 32'hDEADBEEF};
 	end
 	
 	initial begin : initpc
@@ -85,8 +88,12 @@ module memtest();
 	reg [31:0] mwdata[0:PORTS-1];
 	reg [1:0] mlen[0:PORTS-1];
 
-	initial clk = 0;
+	initial begin
+		clk = 0;
+		clk90 = 0;
+	end
 	always #0.5 clk = !clk;
+	always @(*) clk90 <= #0.25 clk;
 	
 	initial begin
 		$dumpfile("dump.vcd");
@@ -94,6 +101,7 @@ module memtest();
 		$dumpvars(0, maddr);
 		$dumpvars(0, mwdata);
 		$dumpvars(0, mlen);
+		$dumpvars(0, clk90);
 	end
 	
 	always @(*) begin : reqgen
@@ -195,15 +203,15 @@ module memtest();
 	end
 	
 	reg [15:0] ddrdq;
+	reg [1:0] ddrdm;
 	
 	assign ddrdqs = datq[0] == DDQSZ ? 2'b00 : datq[0] == DREAD ? {2{!clk}} : 2'bzz;
 	
 	initial ddrdq = 16'bz;
-	reg [15:0] ddrdqo, ddrdqod;
+	reg [15:0] ddrdqod;
 	reg ddrdqtd;
 	always @(*) begin
 		ddrdqtd <= #0.25 ddrdqt;
-		ddrdqod <= #0.25 ddrdqo;
 	end
 	always @(*) begin
 		ddrdq = 16'bz;
@@ -213,17 +221,18 @@ module memtest();
 			ddrdq = ddrdqod;
 	end
 	initial $dumpvars(0, ddrdq);
-	
-	reg [15:0] ddrdqd;
-	always @(ddrdq)
-		ddrdqd <= #0.25 ddrdq;
+
 	reg [23:0] addrq00;
 	reg [1:0] datq00;
 	reg [1:0] datqba00;
 	reg [15:0] ddrdq0;
+	reg [15:0] ddrdqi0n, ddrdqi1n;
+	always @(posedge clk90) begin
+		ddrdqi0n <= ddrdq;
+		ddrdm <= ddrdmo;
+		ddrdqod <= ddrdqo[31:16];
+	end
 	always @(posedge clk) begin
-		ddrdqi0 <= ddrdqd;
-		ddrdqo <= ddrdqo0;
 		if(datq00 == DWRITE && !ddrdm[0]) begin
 			$display("write to %h: %h", addrq00[23:1], {ddrdq, ddrdq0});
 			mem[addrq00 + 1] <= ddrdq;
@@ -231,9 +240,11 @@ module memtest();
 			bankwrtim[datqba00] <= tWR - 1;
 		end
 	end
+	always @(negedge clk90) begin
+		ddrdqi1n <= ddrdq;
+		ddrdqod <= ddrdqo[15:0];
+	end
 	always @(negedge clk) begin
-		ddrdqi1 <= ddrdqd;
-		ddrdqo <= ddrdqo1;
 		if(datq[0] == DWRITE && !ddrdm[0]) begin
 			mem[addrq[0]] <= ddrdq;
 			datq00 <= datq[0];
@@ -242,8 +253,13 @@ module memtest();
 			datqba00 <= datqba[0];
 		end
 	end
+	always @(negedge clk)
+		ddrdqi <= {ddrdqi0n, ddrdqi1n};
 	initial $dumpvars(0, datq);
 	initial $dumpvars(0, addrq);
+	initial $dumpvars(0, ddrdm);
+	initial $dumpvars(0, ddrdqi0n);
+	initial $dumpvars(0, ddrdqi1n);
 	
 	always @(negedge clk) begin : cmd
 		integer i;
@@ -275,6 +291,7 @@ module memtest();
 		if(!ddrcs)
 			case(ddrcmd)
 			CMDNOP: ;
+			CMDMODE: ;
 			CMDACT: begin
 				if(ddrba === 2'bxx)
 					$error("ACT: bank xx");
@@ -301,6 +318,8 @@ module memtest();
 							$error("PRE ALL: bank %d tRAS not elapsed", i);
 						else if(bankwrtim[i])
 							$error("PRE ALL: bank %d tWR not elapsed", i);
+						bankact[i] <= 0;
+						banktim[i] <= tRP - 1;
 					end
 				end else begin
 					if(ddrba === 2'bxx)
@@ -313,9 +332,9 @@ module memtest();
 						$error("PRE: tRAS not elapsed");
 					else if(bankwrtim[ddrba])
 						$error("PRE: tWR not elapsed");
+					bankact[ddrba] <= 0;
+					banktim[ddrba] <= tRP - 1;
 				end
-				bankact[ddrba] <= 0;
-				banktim[ddrba] <= tRP - 1;
 			end
 			CMDRD: begin
 				if(ddrba === 2'bxx)
@@ -326,7 +345,7 @@ module memtest();
 					$error("RD: bank precharged");
 				else if(banktim[ddrba])
 					$error("RD: bank activating");
-				if(wtrtim != 0)
+				if(wtrtim != 0 || datq[0] == DWRITE || datq[1] == DWRITE)
 					$error("RD: tWTR not expired");
 				for(i = 0; i < BLEN; i = i + 1) begin
 					datq[i + CAS] <= DREAD;
@@ -361,6 +380,15 @@ module memtest();
 				for(i = CAS; i < QLEN; i = i + 1)
 					datq[i] <= DIDLE;
 			end
+			CMDREFR: begin
+				for(i = 0; i < 4; i = i + 1) begin
+					if(bankact[i])
+						$error("REFR: bank %d active", i);
+					else if(banktim[i] != 0)
+						$error("REFR: bank %d precharging", i);
+					banktim[i] <= tRFC - 1;
+				end
+			end
 			default:
 				$error("unknown command %b", ddrcmd);
 			endcase
@@ -370,15 +398,14 @@ module memtest();
 				  // Outputs
 				  .ddra			(ddra[12:0]),
 				  .ddrba		(ddrba[1:0]),
-				  .ddrdqo0		(ddrdqo0[15:0]),
-				  .ddrdqo1		(ddrdqo1[15:0]),
+				  .ddrdqo		(ddrdqo[31:0]),
 				  .ddrdqt		(ddrdqt),
 				  .ddrwe		(ddrwe),
 				  .ddrras		(ddrras),
 				  .ddrcas		(ddrcas),
 				  .ddrcs		(ddrcs),
 				  .ddrcke		(ddrcke),
-				  .ddrdm		(ddrdm[1:0]),
+				  .ddrdmo		(ddrdmo[1:0]),
 				  .memrdata		(memrdata[31:0]),
 				  .memack		(memack[PORTS-1:0]),
 				  .memready		(memready[PORTS-1:0]),
@@ -386,8 +413,7 @@ module memtest();
 				  .ddrdqs		(ddrdqs[1:0]),
 				  // Inputs
 				  .clk			(clk),
-				  .ddrdqi0		(ddrdqi0[15:0]),
-				  .ddrdqi1		(ddrdqi1[15:0]),
+				  .ddrdqi		(ddrdqi[31:0]),
 				  .memaddr		(memaddr[23*PORTS-1:0]),
 				  .memwdata		(memwdata[32*PORTS-1:0]),
 				  .memlen		(memlen[2*PORTS-1:0]),

@@ -47,11 +47,18 @@ module i2carb(
 	localparam ADADDR = 6;
 	localparam ADDATA = 7;
 	localparam ADWAITREQ = 8;
+	localparam DBGADDR = 9;
+	localparam DBGDATA = 10;
 	
 	reg [31:0] xratimer;
 	
 	reg hderr_, sethdrddata, aderr_, setadrddata, timerstart, setgpio;
 	reg [7:0] hdrddatareg, adrddatareg;
+	
+	wire [7:0] dbgaddr, dbgwdata;
+	wire dbgreq;
+	reg dbgack;
+	debugreg debugreg0(clk, dbgaddr, dbgwdata, dbgreq, dbgack);
 	
 	initial begin
 		state = IDLE;
@@ -87,6 +94,7 @@ module i2carb(
 		adrddata = adrddatareg;
 		setadrddata = 0;
 		timerstart = 0;
+		dbgack = 0;
 		hderr_ = hderr;
 		aderr_ = aderr;
 		case(state)
@@ -99,6 +107,8 @@ module i2carb(
 				aderr_ = 0;
 			end else if(xratimer == 0)
 				state_  = XRACMD;
+			else if(dbgreq)
+				state_ = DBGADDR;
 		end
 		HDADDR: begin
 			addr = HDBUSADDR;
@@ -193,6 +203,23 @@ module i2carb(
 		ADWAITREQ: begin
 			if(adreq)
 				state_ = ADDATA;
+		end
+		DBGADDR: begin
+			addr = ADBUSADDR;
+			wrdata = dbgaddr;
+			req = 1;
+			if(ack)
+				state_ = DBGDATA;
+		end
+		DBGDATA: begin
+			addr = ADBUSADDR;
+			wrdata = dbgwdata;
+			last = 1;
+			req = 1;
+			if(ack) begin
+				state_ = IDLE;
+				dbgack = 1;
+			end
 		end
 		endcase
 	end
