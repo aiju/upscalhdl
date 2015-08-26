@@ -81,9 +81,7 @@ module top(
 	always @(posedge clk) begin
 		sdain1 <= sdain0;
 		sdain <= sdain1;
-	end 
-	
-	assign adreset = 1;
+	end
 
 /*	wire trigger = (ddrras & ddrcas & ddrwe) == 0;
 	debug #(.N(121)) debug0(clk, trigger,
@@ -104,7 +102,7 @@ module top(
 		hdx, hdy, hdmclk, hdsclk, hdlrclk, hdi2s, hdint, hdmiactive, gpio, debug);
 	hddma hddma0(clk, rst, memaddr[22:0], memlen[1:0], memrdata, memwdata[31:0], memreq[0], memwr[0],
 		memack[0], memready[0], hdclk, hdx, hdy, hdd1);
-	ad ad0(clk, adaddr, adwrdata, adreq, adwr, adlast, adrddata, adack, aderr, regaddr, regdata, regvalid);
+	ad ad0(clk, adaddr, adwrdata, adreq, adwr, adlast, adrddata, adack, aderr, regaddr, regdata, regvalid, adreset);
 	addat addat0(adclk, adsfl, advs, adhs, adfield, addat, adinde, adindat);
 	fifo #(.WIDTH(25), .ALEMPTY(16)) adfifo(.rst(rst), .wrclk(adclk), .wren(adinde), .wrdata(adindat),
 		.rdclk(clk), .rden(adrden), .rddata(adoutdat), .empty(adempty));
