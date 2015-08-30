@@ -83,12 +83,12 @@ module top(
 		sdain <= sdain1;
 	end
 
-/*	wire trigger = (ddrras & ddrcas & ddrwe) == 0;
-	debug #(.N(121)) debug0(clk, trigger,
+	wire trigger = memreq[gpio[7]];
+	debug #(.N(234)) debug0(clk, trigger,
 		{ddrdqi[31:0], ddrdqo[31:0], ddrdm[1:0], ddra[12:0], ddrba[1:0], 
-		ddrdqs[1:0], ddrwe, ddrras, ddrcas, ddrcs, ddrcke, memrdata[31:0], 
-		memack[0]}
-	);*/
+		ddrdqs[1:0], ddrwe, ddrras, ddrcas, ddrcs, ddrcke, memaddr[45:0], 
+		memrdata[31:0], memwdata[63:0], memreq[1:0], memack[1:0]}
+	);
 	
 	mem #(.PORTS(MEMPORTS)) mem0(clk, ddra, ddrba, ddrdqi, ddrdqo, ddrdqt, ddrdqsclk, ddrdqszero, ddrwe, ddrras, ddrcas,
 		ddrcs, ddrcke, ddrdmo, memaddr, memwdata, memrdata, memlen, memwr, memreq,

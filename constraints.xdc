@@ -119,16 +119,22 @@ set_property PACKAGE_PIN K3 [get_ports {ddra[0]}]
 set_property PACKAGE_PIN K2 [get_ports {ddrdqs[0]}]
 set_property PACKAGE_PIN K5 [get_ports {ddra[1]}]
 
-create_clock -name clk -period 10.000 [get_nets clk]
+create_clock -name clk -period 10.000 [get_nets clk_IBUF_BUFG]
 create_clock -name drck -period 20.000 [get_nets -hier drck]
+create_clock -name adclk -period 37.000 [get_nets adclk]
 
-set_output_delay -clock ddrckp__0 0.7 [get_ports {ddra[*] ddrba[*] ddrras ddrcas ddrwe ddrcke ddrcs}]
-set_input_delay -clock ddrckp__0 -max 0.7 [get_ports {ddrdq[*]}]
-set_input_delay -clock ddrckp__0 -min -0.7 [get_ports {ddrdq[*]}]
+set_clock_groups -group [get_clocks -include_generated_clocks clk] -group drck -group adclk -group hdclk -asynchronous
 
-set_false_path -from [get_pins rst_reg/C] -to [get_pins hddma0/fifo_i/fifo0/RST]
+set_output_delay -clock ddrckp_OBUF -max -2.3 [get_ports {ddra[*] ddrba[*] ddrras ddrcas ddrwe ddrcke ddrcs}]
+set_output_delay -clock ddrckp_OBUF -min -3 [get_ports {ddra[*] ddrba[*] ddrras ddrcas ddrwe ddrcke ddrcs}]
+set_input_delay -clock ddrckp_OBUF -max 3.7 [get_ports {ddrdq[*]}]
+set_input_delay -clock ddrckp_OBUF -min 2.3 [get_ports {ddrdq[*]}]
+set_output_delay -clock ddrckp_OBUF -max -2.3 [get_ports {ddrdq[*] ddrdm[*]}]
+set_output_delay -clock ddrckp_OBUF -min -3.7 [get_ports {ddrdq[*] ddrdm[*]}]
 
-set_property LOC PLLE2_ADV_X1Y1 [get_cells memphy0/pll]
+set_false_path -from [get_pins rst_reg/C]
+
+set_property LOC MMCME2_ADV_X1Y1 [get_cells memphy0/pll]
 
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.UNUSEDPIN PULLUP [current_design]

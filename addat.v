@@ -79,9 +79,4 @@ module addat(
 		inde <= cact;
 	end
 
-	debug #(.N(50)) debug0(adclk, async,
-		{adsfl, advs, adhs, adfield, addat[19:0], inde, indat[24:0]}
-	);
-
-
 endmodule

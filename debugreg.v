@@ -23,7 +23,7 @@ module debugreg (
 
 	wire capture, shift, drck, reset, tdi;
 	wire tdo;
-	BSCANE2 #(.JTAG_CHAIN(4)) bscane2(
+	BSCANE2 #(.JTAG_CHAIN(3)) bscane2(
 		.CAPTURE(capture),
 		.DRCK(drck),
 		.RESET(reset),

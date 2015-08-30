@@ -24,10 +24,26 @@ proc readdata {} {
 	close $fp
 }
 
-close_hw_target
-open_hw_target -jtag_mode on
-scan_ir_hw_jtag -tdi 2 6
+proc jtag {} {
+	close_hw_target
+	open_hw_target -jtag_mode on
+}
 
-arm
-wait
-readdata
+proc user1 {} {
+	scan_ir_hw_jtag -tdi 2 6
+}
+
+proc user3 {} {
+	scan_ir_hw_jtag -tdi 22 6
+}
+
+proc debug {} {
+	user1
+	arm
+	wait
+	readdata
+}
+
+proc regset {w d} {
+	scan_dr_hw_jtag -tdi [format "%2x%2x" 0x$w 0x$d] 16
+}
